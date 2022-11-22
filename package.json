@@ -1,0 +1,25 @@
+{
+  "name": "scrimbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MDixey17/scrimbot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MDixey17/scrimbot/issues"
+  },
+  "homepage": "https://github.com/MDixey17/scrimbot#readme",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "selfcore": "^1.1.1"
+  }
+}
