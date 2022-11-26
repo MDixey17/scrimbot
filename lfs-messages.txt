@@ -1,0 +1,57 @@
+How To Parse Messages
+
+There are a few common keywords that we can use to help parse the message:
+Time Zones = EST, CST, PST
+Special Characters = @, +, -
+Character Sequences = RN, PM/AM, 2k
+
+With this in mind, we can use these keywords to extract the information we are looking for. We can use the following approach:
+1. Confirm that the content of the message INCLUDES the substring "LFS"
+2. Convert the message to lowercase so we can have a more consistent search
+3. The first thing we will need to learn is the MMR Range, which we need to use either + or - to determine the type of MMR Range
+    IF CONTAINS "+":
+        We know that any "-" included in this message should be related to the time of the scrim
+        We also know that the preceding 4 characters should represent the rank
+        Example: 1500+
+
+        EDGE CASE:
+        1900-2k+ --> Count this as 1900-2000
+
+    ELSE IF CONTAINS "-":
+        We need to check if this contains 1 or 2 "-"
+        IF ONLY 1:
+            We need to confirm this is related to the MMR Range. See below under `ELSE IF 2`
+        
+        ELSE IF 2:
+            One of these is related to the MMR Range, the other is Time Range
+                It is NOT safe to assume one or the other, but we can check by confirming if only one contains 4 digits on either side
+                This confirms that it is the MMR Range.
+                Another way to check is either side contains characters special to time (:, AM/PM, Timezones)
+                Either way, there are multiple ways to check
+    
+    ELSE:
+        Reaching here means that neither "-" or "+" was found. We are safe to assume that all data is exact and can continue to find other information.
+
+4. The final piece of information we need to find is when the scrimmage is requested. This results in 2 sub-pieces of info: time and date
+    Time can be found using the following keywords and characters:
+        : --> Find us the exact time
+        AM/PM: --> Extra obvious info 
+        EST/CST/PST --> Time zone 
+    
+    Date can be found using the following keywords and characters:
+        rn --> 0
+        tonight/today --> 0
+        tomorrow --> 1
+
+        Now, there is the possibility that days of the week are listed instead, but this would require a more complex algorithm and something to be added at a later date.
+        However, a majority of scrimmages are requested either the day of or the following day, so this will be fine for the common scenario.
+
+
+
+DATABASE SCHEMA:
+contact: String --> Discord info of who to contact 
+mmr_range: String --> minMMR-maxMMR; data found from parsing the message 
+time: String --> Time entered by user 
+day: Integer --> Number of days from scrimmage date; 0 = today; 1 = tomorrow; 2 = 2 days; etc.
+from: String --> Discord server name of the original message <== Might not need this
+
