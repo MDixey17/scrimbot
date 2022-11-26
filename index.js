@@ -83,7 +83,7 @@ gateway.on("message", msg => {
     if (content !== '') {
         // We found a message from one of the channels we are monitoring
         // See if it contains LFS before proceeding
-        if (content.includes('LFS')) {
+        if (content.toLowerCase().includes('lfs')) {
             // We know this message is LFS, so pass it to our parse function
             parse(content.toLowerCase(), msg.author);
         }
