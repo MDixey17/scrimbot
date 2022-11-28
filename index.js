@@ -36,8 +36,19 @@ function parse(msg, author) {
             }
             // CASE 2: min_mmr < 1000
             // NOTE: For now, this does NOT seem common enough to implement. This can be done at a later date
-            // TODO: Find the time information
         }
+        // Get the timezone
+        if (msg.includes('est')) {
+            timezone = 'est';
+        }
+        else if (msg.includes('cst')) {
+            timezone = 'cst';
+        }
+        else if (msg.includes('pst')) {
+            timezone = 'pst';
+        }
+
+        // TODO: get the time
     }
     else if (msg.includes('-')) {
         // Get the count of - in the string
