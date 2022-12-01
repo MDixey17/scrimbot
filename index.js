@@ -1,17 +1,52 @@
 import selfcore from "selfcore";
-import { CCA_SCRIM_ID, SIXMANS_SCRIM_ID, NACE_SCRIM_ID, BOT_TOKEN, GATEWAY_TOKEN } from "./config.json";
+import ENV from "./config.json";
+import { Sequelize } from "sequelize";
+import { Client, GatewayIntentBits, Events, Collection} from "discord.js";
+import { LFS_COMMAND } from "./commands/lfs.js";
+import { RESET_COMMAND } from "./commands/reset.js";
 
 const client = new selfcore();
-const gateway = new selfcore.Gateway(GATEWAY_TOKEN);
+const gateway = new selfcore.Gateway(ENV.GATEWAY_TOKEN);
 
-function parse(msg, author) {
+// Connect to Discord
+const discord_client = new Client({ intents: [GatewayIntentBits.Guilds]});
+discord_client.commands = new Collection();
+
+// Connect to database
+const sequelize = new Sequelize('database', 'user', 'password', {
+    host: 'localhost',
+    dialect: 'sqlite',
+    logging: false,
+    storage: 'scrims.sqlite',
+});
+
+const ScrimData = sequelize.define('scrim_data', {
+    contact: {
+        type: Sequelize.STRING,
+    },
+    mmr_range: {
+        type: Sequelize.STRING,
+    },
+    time: {
+        type: Sequelize.STRING,
+    },
+    timezone: {
+        type: Sequelize.STRING,
+    },
+    day: {
+        type: Sequelize.INTEGER,
+    }
+});
+
+// Parse the data received from the selfcore listener
+async function parse(msg, author) {
     // Refer to lfs-messages.txt for in-depth approach behind this function
     // Define variables for our database
     let min_mmr = '';
     let max_mmr = '';
     let time = '';
     let timezone = '';
-    let date = -1;
+    let date = 0;
     let mmr_range = '';
 
     /**
@@ -20,24 +55,56 @@ function parse(msg, author) {
      * LFS 1800-1900 7pm EST (CASE 2)
      * LFS 1400 4pm PST (CASE 3)
      */
-    // Check for +
     if (msg.includes('+')) {
-        // We are safe to assume the max_mmr is infinite & the min_mmr are the 4 digits that precede the +
+        // We are safe to assume the max_mmr is infinite
         max_mmr = "+";
         let plusIndex = msg.indexOf("+");
         min_mmr = msg.substring(plusIndex - 4, plusIndex);
         // Check if this substring contains ONLY numbers
         if (!(/^\d+$/.test(min_mmr))) {
             // We need to find the non-digit characters using common cases
-            // CASE 1: 2k
+            // CASE: 2k
             if (min_mmr.includes('k')) {
                 let kIndex = min_mmr.indexOf('k');
                 min_mmr = String(Number(min_mmr.substring(kIndex - 1, kIndex)) * 1000);
             }
-            // CASE 2: min_mmr < 1000
-            // NOTE: For now, this does NOT seem common enough to implement. This can be done at a later date
         }
-        // Get the timezone
+    }
+    else if (msg.includes('-')) {
+        // Get the count of - in the string
+        let dashCount = (msg.match(/-/g) || []).length;
+        if (dashCount === 1) {
+            // Confirm that this is the MMR Range and NOT the Time Range
+            // Check the next 4 characters and confirm they are all digits
+            let dashIndex = msg.indexOf('-');
+            if (/^\d+$/.test(msg.substring(dashIndex + 1, dashIndex + 5))) { //1400-1700
+                min_mmr = msg.substring(dashIndex - 4, dashIndex);
+                max_mmr = msg.substring(dashIndex + 1, dashIndex + 5);
+            }
+        }
+        // else if (dashCount === 2) {
+
+        // }
+        else {
+            console.log('Unrecognized message input! Returning....');
+            return;
+        }
+    }
+    else {
+        // MOST COMMON EXAMPLE: LFS MMR TIME TIMEZONE DATE
+        // Split on the spaces
+        let msgPieces = msg.split(' '); // [LFS, MMR, TIME, TIMEZONE, DATE]
+        for (let i = 1; i < msgPieces.length; i++) {
+            if (/^\d+$/.test(msgPieces[i])) {
+                // MMR
+                mmr_range = msgPieces[i];
+                break;
+            }
+        }
+    }
+
+    // Get the timezone
+    if (timezone === '') {
         if (msg.includes('est')) {
             timezone = 'est';
         }
@@ -47,48 +114,101 @@ function parse(msg, author) {
         else if (msg.includes('pst')) {
             timezone = 'pst';
         }
-
-        // TODO: get the time
     }
-    else if (msg.includes('-')) {
-        // Get the count of - in the string
-        let dashCount = (msg.match(/-/g) || []).length;
-        if (dashCount === 1) {
-            // TODO
-            // Confirm that this is the MMR Range and NOT the Time Range
-            // Check the next 4 characters and confirm they are all digits
+
+    // Get Time
+    if (time === '') {
+        if (!msg.includes(':')) {
+            if (msg.includes('pm')) {
+                let pmIndex = msg.indexOf('pm');
+                // Check if hour is 2 digits
+                if (/^\d+$/.test(msg.substring(pmIndex - 2, pmIndex))) {
+                    // This is 2 digits
+                    time = msg.substring(pmIndex - 2, pmIndex + 2);
+                }
+                else {
+                    // This is 1 digit
+                    time = msg.substring(pmIndex - 1, pmIndex + 2);
+                }
+            }
+            else if (msg.includes('am')) {
+                let amIndex = msg.indexOf('am');
+                // Check if hour is 2 digits
+                if (/^\d+$/.test(msg.substring(amIndex - 2, amIndex))) {
+                    // This is 2 digits
+                    time = msg.substring(amIndex - 2, amIndex + 2);
+                }
+                else {
+                    // This is 1 digit
+                    time = msg.substring(amIndex - 1, amIndex + 2);
+                }
+            }
+        }
+    }
+
+    // Get Day
+    if (msg.includes('rn') || msg.includes('now')) {
+        date = 0;
+    }
+    else if (msg.includes('tonight')) {
+        date = 0;
+    }
+    else if (msg.includes('tomorrow') || msg.includes('tom')) {
+        date = 1;
+    }
+
+    // Compute actual MMR Range
+    if (min_mmr !== '' && max_mmr !== '' && mmr_range === '') {
+        if (max_mmr === "+") {
+            mmr_range = min_mmr + "+";
         }
         else {
-            console.log('Unrecognized message input! Returning....');
-            return;
+            mmr_range = min_mmr + "-" + max_mmr;
         }
     }
+
+    // Strategy: post these to the Bot Test Server to see what kind of formats are not working
+    // Check all variables
+    if (mmr_range !== '' && time !== '' && timezone !== '') {
+        // Add to database
+        await ScrimData.sync();
+        const scrim = await ScrimData.create({
+            contact: author,
+            mmr_range: mmr_range,
+            time: time,
+            timezone: timezone,
+            day: date,
+        });
+    }
     else {
-        // TODO
-        // MOST COMMON EXAMPLE: LFS MMR TIME DATE
-        // Split on the spaces
+        // Post msg to private Discord
+        client.sendWebhook(ENV.WEBHOOK_LINK, msg);
     }
 
-    // TODO: Return & Indicate bad input
-    // Strategy: post these to the Bot Test Server to see what kind of formats are not working
 
 }
 
+// Listen to messages in each of the servers
 gateway.on("message", msg => {
     let content = ''
-    // CCA Discord
-    if (msg.channel_id === CCA_SCRIM_ID) {
-        content = msg.content ? msg.content : 'Message in CCA Discord was Embedded Message';
-    }
+    // // CCA Discord
+    // if (msg.channel_id === ENV.CCA_SCRIM_ID) {
+    //     content = msg.content ? msg.content : 'Message in CCA Discord was Embedded Message';
+    // }
 
-    // RL 6mans NA
-    else if (msg.channel_id === SIXMANS_SCRIM_ID) {
-        content = msg.content ? msg.content : 'Message in RL 6mans NA Discord was Embedded Message';
-    }
+    // // RL 6mans NA
+    // else if (msg.channel_id === ENV.SIXMANS_SCRIM_ID) {
+    //     content = msg.content ? msg.content : 'Message in RL 6mans NA Discord was Embedded Message';
+    // }
 
-    // NACE
-    else if (msg.channel_id === NACE_SCRIM_ID) {
-        content = msg.content ? msg.content : 'Message in NACE Starleague Discord was Embedded Message';
+    // // NACE
+    // else if (msg.channel_id === ENV.NACE_SCRIM_ID) {
+    //     content = msg.content ? msg.content : 'Message in NACE Starleague Discord was Embedded Message';
+    // }
+
+    // TEST SERVER
+    if (msg.channel_id === ENV.TEST_SERVER_ID) {
+        content = msg.content ? msg.content : 'Message in Test Server Discord was Embedded Message';
     }
 
     if (content !== '') {
@@ -96,9 +216,54 @@ gateway.on("message", msg => {
         // See if it contains LFS before proceeding
         if (content.toLowerCase().includes('lfs')) {
             // We know this message is LFS, so pass it to our parse function
-            parse(content.toLowerCase(), msg.author);
+            parse(content.toLowerCase(), msg.author.username + "#" + msg.author.discriminator);
         }
     }
-    client.sendWebhook("https://discord.com/api/webhooks/1044425117641494618/lMSYrsrrHaalPHPsZO4zcL6ZWD44kJbd-rIFPE5jZmk-BRsvWQ6j-oYARcabKKkiDpPY", content);
-
 });
+
+// Trigger when the bot is ready
+discord_client.once('ready', async () => {
+    console.log('ScrimBot online!');
+});
+
+// Handle Commands
+discord_client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = interaction.client.commands.get(interaction.commandName);
+
+    // Remove all old scrimmages from the database
+
+    // Make sure commands are only executed via the #lf-scrim channel
+    if (interaction.channel.name !== "lf-scrim") {
+        const channelEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('ScrimBot - Wrong Channel')
+            .setDescription('Please use the #lf-scrim channel')
+        await interaction.reply({ embeds: [channelEmbed] });
+        return;
+    }
+
+    try {
+        if (interaction.commandName === 'lfs') {
+            await LFS_COMMAND.execute(interaction);
+        }
+        else if (interaction.commandName === 'reset') {
+            await RESET_COMMAND.execute(interaction);
+        }
+        else {
+            console.error(`No command matching ${interaction.commandName} was found.`);
+            return;
+        }
+    } catch (err) {
+        console.error(err);
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('ScrimBot - Error')
+            .setDescription('There was an error while executing this command!');
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true});
+    }
+})
+
+// Log in to Discord
+discord_client.login(ENV.BOT_TOKEN);

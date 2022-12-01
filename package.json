@@ -19,7 +19,10 @@
   },
   "homepage": "https://github.com/MDixey17/scrimbot#readme",
   "dependencies": {
+    "discord.js": "^14.7.0",
     "dotenv": "^16.0.3",
-    "selfcore": "^1.1.1"
+    "selfcore": "^1.1.1",
+    "sequelize": "^6.25.8",
+    "sqlite3": "^5.1.2"
   }
 }
