@@ -1,7 +1,7 @@
 import selfcore from "selfcore";
 import ENV from "./config.json";
 import { Sequelize } from "sequelize";
-import { Client, GatewayIntentBits, Events, Collection} from "discord.js";
+import { Client, GatewayIntentBits, Events, Collection, EmbedBuilder } from "discord.js";
 import { LFS_COMMAND } from "./commands/lfs.js";
 import { RESET_COMMAND } from "./commands/reset.js";
 
@@ -37,6 +37,79 @@ const ScrimData = sequelize.define('scrim_data', {
         type: Sequelize.INTEGER,
     }
 });
+
+// Remove old scrimmages from the database
+async function removeScrims() {
+    await ScrimData.sync();
+    const today = new Date();
+    const todayDD = Number(String(today.getDate()).padStart(2, '0'));
+    const todayMM = Number(String(today.getMonth() + 1).padStart(2, '0'));
+    const todayYYYY = today.getFullYear();
+    let allScrims = await ScrimData.findAll();
+    let scrimsToDelete = []; // createdAt
+    let deleteCount = 0;
+    allScrims.forEach(scrim => {
+        const t = new Date(scrim.createdAt);
+        const tDD = Number(String(t.getDate()).padStart(2, '0'));
+        const tMM = Number(String(t.getMonth() + 1).padStart(2, '0'));
+        const tYYYY = t.getFullYear();
+        // Get the dd value of both today and t
+        /**
+         * If difference of today - (t + scrim.day) <= 0 --> Don't delete
+         * Else --> Mark it to be deleted
+         */
+
+        // EDGE CASE: New Month or New Year
+        if (tDD > todayDD) { 
+            // Is this a new month
+            if (tMM < todayMM) {
+                // Yes, this is a new month so our if statement needs to account for at least 27 days
+                if ((tDD + scrim.day) - todayDD > 25) {
+                    scrimsToDelete.push(scrim.createdAt);
+                }
+            }
+            else {
+                // Is this a new year
+                if (tYYYY < todayYYYY) {
+                    // Yes, this is a new year
+                    if ((tDD + scrim.day) - todayDD > 28) {
+                        scrimsToDelete.push(scrim.createdAt);
+                    }
+                }
+                else {
+                    // This is weird, log it and return
+                    console.log(`Found weird date:\nEntry createdAt: ${tMM}-${tDD}-${tYYYY}\nToday's Date: ${todayMM}-${todayDD}-${todayYYYY}`);
+                    return;
+                }
+            }
+        }
+        else {
+            // We can proceed with the general case
+            if (todayDD - (tDD + scrim.day) > 0) {
+                scrimsToDelete.push(scrim.createdAt);
+            }
+        }
+
+    });
+
+    for (let i = 0; i < scrimsToDelete.length; i++) {
+        const numRowsDeleted = await ScrimData.destroy({ where: {createdAt: scrimsToDelete[i] }});
+        deleteCount += numRowsDeleted;
+    }
+
+    console.log('Scrimmages Removed:', deleteCount);
+}
+
+async function checkDuplicates(contact, mmrRange, time, timezone, day) {
+    await ScrimData.sync();
+    let allScrims = await ScrimData.findAll();
+    allScrims.forEach(scrim => {
+        if (scrim.contact === contact && scrim.mmr_range === mmrRange && scrim.time === time && scrim.timezone === timezone && scrim.day === day) {
+            return true; // Found a duplicate LFS message, so we DO NOT want to add it
+        }
+    });
+    return false; // Not a duplicate LFS message
+}
 
 // Parse the data received from the selfcore listener
 async function parse(msg, author) {
@@ -170,15 +243,20 @@ async function parse(msg, author) {
     // Strategy: post these to the Bot Test Server to see what kind of formats are not working
     // Check all variables
     if (mmr_range !== '' && time !== '' && timezone !== '') {
-        // Add to database
-        await ScrimData.sync();
-        const scrim = await ScrimData.create({
-            contact: author,
-            mmr_range: mmr_range,
-            time: time,
-            timezone: timezone,
-            day: date,
-        });
+        if (!(await checkDuplicates(author, mmr_range, time, timezone, date))) {
+            // Add to database
+            await ScrimData.sync();
+            const scrim = await ScrimData.create({
+                contact: author,
+                mmr_range: mmr_range,
+                time: time,
+                timezone: timezone,
+                day: date,
+            });
+        }
+        else {
+            console.log('Found duplicate scrim. Ignoring!');
+        }
     }
     else {
         // Post msg to private Discord
@@ -233,6 +311,7 @@ discord_client.on(Events.InteractionCreate, async interaction => {
     const command = interaction.client.commands.get(interaction.commandName);
 
     // Remove all old scrimmages from the database
+    await removeScrims();
 
     // Make sure commands are only executed via the #lf-scrim channel
     if (interaction.channel.name !== "lf-scrim") {

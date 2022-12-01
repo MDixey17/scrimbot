@@ -27,10 +27,34 @@ const ScrimData = sequelize.define('scrim_data', {
     }
 });
 
+function printData(m, arr) {
+    arr.forEach(e => {
+        console.log(`MMR Range: ${e.mmr_range}\nCount: ${m.get(e)}\n\n`);
+    })
+}
+
+function removeEntry(a, val) {
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] === val) {
+            a.splice(i, 1);
+        }
+    }
+    return a;
+}
+
 function removeUnique(arr, minCount) {
     let map = new Map();
     arr.forEach(e => map.set(e, (map.get(e) || 0) + 1));
-    return arr.filter(e => map.get(e) > minCount);
+    // console.log(`minCount = ${minCount}`);
+    // printData(map, arr);
+    let temp = [];
+    arr.forEach(e => {
+        if (map.get(e) >= minCount) {
+            temp.push(e);
+            arr = removeEntry(arr, e);
+        }
+    })
+    return arr.filter(e => map.get(e) >= minCount);
 }
 
 export const LFS_COMMAND = {
@@ -138,15 +162,17 @@ export const LFS_COMMAND = {
 
         const timeZoneInput = interaction.options.getString('timezone');
         if (timeZoneInput) {
-            inputCount += 1;
-            if (timeZoneInput !== 'est' || !timeZoneInput !== 'cst' || timeZoneInput !== 'pst') {
+            if (timeInput) {
+                inputCount += 1;
+            }
+            if (timeZoneInput !== 'est' && timeZoneInput !== 'cst' && timeZoneInput !== 'pst') {
                 await interaction.editReply({ embeds: [errorEmbed] });
                 return;
             }
         }
         
-        const daysInput = interaction.options.getInteger('day');
-        if (daysInput) {
+        const daysInput = interaction.options.getInteger('day') ?? -1;
+        if (daysInput >= 0) {
             inputCount += 1;
             if (daysInput < 0 || daysInput > 1) {
                 await interaction.editReply({ embeds: [errorEmbed] });
@@ -186,7 +212,7 @@ export const LFS_COMMAND = {
                 // Convert hour value and compare
                 if (timeZoneInput) {
                     let hourDiff = 0;
-                    if (scrim.timezone === 'pst') {
+                    if (scrim.timezone.includes('pst')) {
                         if (timeZoneInput === 'pst') {
                             hourDiff = 0;
                         }
@@ -197,7 +223,7 @@ export const LFS_COMMAND = {
                             hourDiff = 3;
                         }
                     }
-                    else if (scrim.timezone === 'cst') {
+                    else if (scrim.timezone.includes('cst')) {
                         if (timeZoneInput === 'pst') {
                             hourDiff = -2;
                         }
@@ -208,7 +234,7 @@ export const LFS_COMMAND = {
                             hourDiff = 1;
                         }
                     }
-                    else if (scrim.timezone === 'est') {
+                    else if (scrim.timezone.includes('est')) {
                         if (timeZoneInput === 'pst') {
                             hourDiff = -3;
                         }
@@ -221,12 +247,12 @@ export const LFS_COMMAND = {
                     }
 
                     if (scrim.time.length === 4) {
-                        if (hourVal === Number(scrim.time.substring(0, 2)) + hourDiff && moa === scrim.time.substring(2)) {
+                        if (hourVal === (Number(scrim.time.substring(0, 2)) + hourDiff) && moa === scrim.time.substring(2)) {
                             obtainedData.push(scrim);
                         }
                     }
                     else if (scrim.time.length === 3) {
-                        if (hourVal === Number(scrim.time.substring(0, 1)) + hourDiff && moa === scrim.time.substring(1)) {
+                        if (hourVal === (Number(scrim.time.substring(0, 1)) + hourDiff) && moa === scrim.time.substring(1)) {
                             obtainedData.push(scrim);
                         }
                     }
@@ -244,7 +270,7 @@ export const LFS_COMMAND = {
                     }
                 }
             }
-            if (daysInput) {
+            if (daysInput >= 0) {
                 let t = new Date(scrim.createdAt);
                 const diffTime = Math.abs(today - t);
                 const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
@@ -254,10 +280,13 @@ export const LFS_COMMAND = {
             }
         });
 
-        if (inputCount > 0) {
+        if (inputCount > 1 && timeZoneInput && timeInput) {
+            obtainedData = removeUnique(obtainedData, inputCount - 1);
+        }
+        else if (inputCount > 1) {
             obtainedData = removeUnique(obtainedData, inputCount);
         }
-        else {
+        else if (inputCount === 0) {
             obtainedData = allScrims;
         }
         // Create return embed with the description being the found scrimmages
@@ -268,7 +297,15 @@ export const LFS_COMMAND = {
         let descString = '';
         for (let i = 0; i < obtainedData.length; i++) {
             if (descString.length + maxCharMessage.length + 100 < 4050) {
-                descString += "**" + String(obtainedData[i].mmr_range) + '** Scrimmage\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                let t = new Date(obtainedData[i].createdAt);
+                const diffTime = Math.abs(today - t);
+                const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                if (numDays === 0) {
+                    descString += "**" + String(obtainedData[i].mmr_range) + '** Scrimmage - Today @ ' + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                }
+                else if (numDays >= 1) {
+                    descString += "**" + String(obtainedData[i].mmr_range) + '** Scrimmage - Tomorrow @ ' + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                }
             }
             else {
                 descString += maxCharMessage;
@@ -276,7 +313,14 @@ export const LFS_COMMAND = {
             }
         }
 
-        embed.setDescription(descString);
+        if (descString.length === 0) {
+            embed.setDescription('No scrimmages found!');
+            embed.setColor('#FFFF00');
+            embed.setTitle('ScrimBot - No Scrims Found');
+        }
+        else {
+            embed.setDescription(descString);
+        }
         await interaction.editReply({embeds: [embed]});
     }
 };
