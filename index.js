@@ -111,6 +111,38 @@ async function checkDuplicates(contact, mmrRange, time, timezone, day) {
     return false; // Not a duplicate LFS message
 }
 
+// Get the number of days if a day of the week is given
+function getNumDays(inputDay) {
+    const weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const today = new Date();
+    const todayWeekday = weekdays[today.getDay()];
+    // CASE: 6 Days
+    if ((inputDay === 'sunday' && todayWeekday === 'Monday') || (inputDay === 'monday' && todayWeekday === 'Tuesday') || (inputDay === 'tuesday' && todayWeekday === 'Wednesday') || (inputDay === 'wednesday' && todayWeekday === 'Thursday') || (inputDay === 'thursday' && todayWeekday === 'Friday') || (inputDay === 'friday' && todayWeekday === 'Saturday') || (inputDay === 'saturday' && todayWeekday === 'Sunday')) {
+        return 6;
+    }
+    // CASE: 5 Days
+    else if ((inputDay === 'sunday' && todayWeekday === 'Tuesday') || (inputDay === 'monday' && todayWeekday === 'Wednesday') || (inputDay === 'tuesday' && todayWeekday === 'Thursday') || (inputDay === 'wednesday' && todayWeekday === 'Friday') || (inputDay === 'thursday' && todayWeekday === 'Saturday') || (inputDay === 'friday' && todayWeekday === 'Sunday') || (inputDay === 'saturday' && todayWeekday === 'Monday')) {
+        return 5;
+    }
+    // CASE: 4 Days
+    else if ((inputDay === 'sunday' && todayWeekday === 'Wednesday') || (inputDay === 'monday' && todayWeekday === 'Thursday') || (inputDay === 'tuesday' && todayWeekday === 'Friday') || (inputDay === 'wednesday' && todayWeekday === 'Saturday') || (inputDay === 'thursday' && todayWeekday === 'Sunday') || (inputDay === 'friday' && todayWeekday === 'Monday') || (inputDay === 'saturday' && todayWeekday === 'Tuesday')) {
+        return 4;
+    }
+    // CASE: 3 Days
+    else if ((inputDay === 'sunday' && todayWeekday === 'Thursday') || (inputDay === 'monday' && todayWeekday === 'Friday') || (inputDay === 'tuesday' && todayWeekday === 'Saturday') || (inputDay === 'wednesday' && todayWeekday === 'Sunday') || (inputDay === 'thursday' && todayWeekday === 'Monday') || (inputDay === 'friday' && todayWeekday === 'Tuesday') || (inputDay === 'saturday' && todayWeekday === 'Wednesday')) {
+        return 3;
+    }
+    // CASE: 2 Days
+    else if ((inputDay === 'sunday' && todayWeekday === 'Friday') || (inputDay === 'monday' && todayWeekday === 'Saturday') || (inputDay === 'tuesday' && todayWeekday === 'Sunday') || (inputDay === 'wednesday' && todayWeekday === 'Monday') || (inputDay === 'thursday' && todayWeekday === 'Tuesday') || (inputDay === 'friday' && todayWeekday === 'Wednesday') || (inputDay === 'saturday' && todayWeekday === 'Thursday')) {
+        return 2;
+    }
+    // CASE: 1 Day
+    else if ((inputDay === 'sunday' && todayWeekday === 'Saturday') || (inputDay === 'monday' && todayWeekday === 'Sunday') || (inputDay === 'tuesday' && todayWeekday === 'Monday') || (inputDay === 'wednesday' && todayWeekday === 'Tuesday') || (inputDay === 'thursday' && todayWeekday === 'Wednesday') || (inputDay === 'friday' && todayWeekday === 'Thursday') || (inputDay === 'saturday' && todayWeekday === 'Friday')) {
+        return 1;
+    } 
+    return 0;
+}
+
 // Parse the data received from the selfcore listener
 async function parse(msg, author) {
     // Refer to lfs-messages.txt for in-depth approach behind this function
@@ -229,6 +261,27 @@ async function parse(msg, author) {
     else if (msg.includes('tomorrow') || msg.includes('tom')) {
         date = 1;
     }
+    else if (msg.includes('monday')) {
+        date = getNumDays('monday');
+    }
+    else if (msg.includes('tuesday')) {
+        date = getNumDays('tuesday');
+    }
+    else if (msg.includes('wednesday')) {
+        date = getNumDays('wednesday');
+    }
+    else if (msg.includes('thursday')) {
+        date = getNumDays('thursday');
+    }
+    else if (msg.includes('friday')) {
+        date = getNumDays('friday');
+    }
+    else if (msg.includes('saturday')) {
+        date = getNumDays('saturday');
+    }
+    else if (msg.includes('sunday')) {
+        date = getNumDays('sunday');
+    }
 
     // Compute actual MMR Range
     if (min_mmr !== '' && max_mmr !== '' && mmr_range === '') {
@@ -294,7 +347,12 @@ gateway.on("message", msg => {
         // See if it contains LFS before proceeding
         if (content.toLowerCase().includes('lfs')) {
             // We know this message is LFS, so pass it to our parse function
-            parse(content.toLowerCase(), msg.author.username + "#" + msg.author.discriminator);
+            try {
+                parse(content.toLowerCase(), msg.author.username + "#" + msg.author.discriminator);
+            } catch (err) {
+                console.log(err);
+            }
+            
         }
     }
 });

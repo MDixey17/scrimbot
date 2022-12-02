@@ -57,6 +57,30 @@ function removeUnique(arr, minCount) {
     return arr.filter(e => map.get(e) >= minCount);
 }
 
+// Get the correct String to post to the user when the scrimmage is
+function getDayString(inputDay) {
+    if (inputDay < 0) {
+        return '';
+    }
+    // inputDay = scrim.day - numDays since created in database
+    const weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const today = new Date();
+    if (inputDay === 0) {
+        return 'Today';
+    }
+    else if (inputDay === 1) {
+        return 'Tomorrow';
+    }
+    else {
+        if (inputDay + today.getDay() > 6) {
+            return weekdays[inputDay + today.getDay() - 7];
+        }
+        else {
+            return weekdays[inputDay + today.getDay()];
+        }
+    }
+}
+
 export const LFS_COMMAND = {
     data: new SlashCommandBuilder()
         .setName('lfs')
@@ -174,7 +198,7 @@ export const LFS_COMMAND = {
         const daysInput = interaction.options.getInteger('day') ?? -1;
         if (daysInput >= 0) {
             inputCount += 1;
-            if (daysInput < 0 || daysInput > 1) {
+            if (daysInput < 0 || daysInput > 6) {
                 await interaction.editReply({ embeds: [errorEmbed] });
                 return;
             }
@@ -274,7 +298,7 @@ export const LFS_COMMAND = {
                 let t = new Date(scrim.createdAt);
                 const diffTime = Math.abs(today - t);
                 const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-                if (daysInput - scrim.day === numDays) {
+                if (Math.abs(daysInput - scrim.day) === numDays) {
                     obtainedData.push(scrim);
                 }
             }
@@ -300,11 +324,9 @@ export const LFS_COMMAND = {
                 let t = new Date(obtainedData[i].createdAt);
                 const diffTime = Math.abs(today - t);
                 const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-                if (numDays === 0) {
-                    descString += "**" + String(obtainedData[i].mmr_range) + '** Scrimmage - Today @ ' + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
-                }
-                else if (numDays >= 1) {
-                    descString += "**" + String(obtainedData[i].mmr_range) + '** Scrimmage - Tomorrow @ ' + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                const dayString = getDayString(obtainedData[i].day - numDays);
+                if (dayString) {
+                    descString += "**" + String(obtainedData[i].mmr_range) + `** Scrimmage - ${dayString} @ ` + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
                 }
             }
             else {
