@@ -205,6 +205,13 @@ async function parse(msg, author) {
                 mmr_range = msgPieces[i];
                 break;
             }
+            else if (msgPieces[i].includes('k')) {
+                const kIndex = msgPieces[i].indexOf('k');
+                if (/^\d+$/.test(msgPieces[i].substring(0, kIndex))) {
+                    mmr_range = Number(msgPieces[i].substring(0, kIndex)) * 1000;
+                    break;
+                }
+            }
         }
     }
 
@@ -246,6 +253,24 @@ async function parse(msg, author) {
                 else {
                     // This is 1 digit
                     time = msg.substring(amIndex - 1, amIndex + 2);
+                }
+            }
+        }
+        else {
+            const colonIndex = msg.indexOf(':');
+            if (/^\d+$/.test(msg.substring(colonIndex - 1, colonIndex)) && /^\d+$/.test(msg.substring(colonIndex + 1, colonIndex + 3))) {
+                // Check if 1 or 2 digits before colon
+                if (/^\d+$/.test(msg.substring(colonIndex - 2, colonIndex))) {
+                    // 2 Digits
+                    if (msg.substring(colonIndex + 3, colonIndex + 5) === 'pm' || msg.substring(colonIndex + 3, colonIndex + 5) === 'am') {
+                        time = msg.substring(colonIndex - 2, colonIndex + 5);
+                    }
+                }
+                else {
+                    // 1 Digit
+                    if (msg.substring(colonIndex + 3, colonIndex + 5) === 'pm' || msg.substring(colonIndex + 3, colonIndex + 5) === 'am') {
+                        time = msg.substring(colonIndex - 1, colonIndex + 5);
+                    }
                 }
             }
         }

@@ -29,13 +29,14 @@ const ScrimData = sequelize.define('scrim_data', {
 
 function printData(m, arr) {
     arr.forEach(e => {
-        console.log(`MMR Range: ${e.mmr_range}\nCount: ${m.get(e)}\n\n`);
+        console.log(`MMR Range: ${e.mmr_range}\nDay: ${e.day}\nCount: ${m.get(e)}\n\n`);
     })
 }
 
 function removeEntry(a, val) {
     for (let i = 0; i < a.length; i++) {
         if (a[i] === val) {
+            //console.log(`Entry Being Removed:\nDay: ${a[i].day}\nMMR Range: ${a[i].mmr_range}`);
             a.splice(i, 1);
         }
     }
@@ -178,6 +179,25 @@ export const LFS_COMMAND = {
                     }
                 }
             }
+            else if ((timeInput.includes('am') || timeInput.includes('pm')) && timeInput.includes(':')) {
+                if (timeInput.includes('am')) {
+                    moa = 'am';
+                }
+                else if (timeInput.includes('pm')) {
+                    moa = 'pm';
+                }
+                const colonIndex = timeInput.indexOf(':');
+                if (/^\d+$/.test(msg.substring(colonIndex - 2, colonIndex))) {
+                    hourVal = Number(msg.substring(colonIndex - 2, colonIndex));
+                }
+                else if (/^\d+$/.test(msg.substring(colonIndex - 1, colonIndex))) {
+                    hourVal = Number(msg.substring(colonIndex - 1, colonIndex));
+                }
+                else {
+                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return;
+                }
+            }
             else {
                 await interaction.editReply({ embeds: [errorEmbed] });
                 return;
@@ -241,7 +261,7 @@ export const LFS_COMMAND = {
                             hourDiff = 0;
                         }
                         else if (timeZoneInput === 'cst') {
-                            hourDiff = 1;
+                            hourDiff = 2;
                         }
                         else if (timeZoneInput === 'est') {
                             hourDiff = 3;
@@ -280,6 +300,16 @@ export const LFS_COMMAND = {
                             obtainedData.push(scrim);
                         }
                     }
+                    else if (scrim.time.length === 7) {
+                        if (hourVal === (Number(scrim.time.substring(0, 2)) + hourDiff) && moa === scrim.time.substring(5)) {
+                            obtainedData.push(scrim);
+                        }
+                    }
+                    else if (scrim.time.length === 6) {
+                        if (hourVal === (Number(scrim.time.substring(0, 1)) + hourDiff) && moa === scrim.time.substring(4)) {
+                            obtainedData.push(scrim);
+                        }
+                    }
                 }
                 else {
                     if (scrim.time.length === 4) {
@@ -289,6 +319,16 @@ export const LFS_COMMAND = {
                     }
                     else if (scrim.time.length === 3) {
                         if (hourVal === Number(scrim.time.substring(0, 1)) && moa === scrim.time.substring(1)) {
+                            obtainedData.push(scrim);
+                        }
+                    }
+                    else if (scrim.time.length === 7) {
+                        if (hourVal === (Number(scrim.time.substring(0, 2))) && moa === scrim.time.substring(5)) {
+                            obtainedData.push(scrim);
+                        }
+                    }
+                    else if (scrim.time.length === 6) {
+                        if (hourVal === (Number(scrim.time.substring(0, 1))) && moa === scrim.time.substring(4)) {
                             obtainedData.push(scrim);
                         }
                     }
