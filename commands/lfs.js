@@ -237,7 +237,7 @@ export const LFS_COMMAND = {
                 // Convert MMR Range to Numbers so we can see if user input matches range
                 // We have minMMR and maxMMR already set so we convert scrim.mmr_range and do the comparisons
                 if (scrim.mmr_range.includes('+')) {
-                    if (minMMR >= Number(scrim.mmr_range.substring(0, scrim.mmr_range.indexOf('+')))) {
+                    if (minMMR >= Number(scrim.mmr_range.substring(0, scrim.mmr_range.indexOf('+'))) || maxMMR >= Number(scrim.mmr_range.substring(0, scrim.mmr_range.indexOf('+')))) {
                         obtainedData.push(scrim);
                     }
                 }
