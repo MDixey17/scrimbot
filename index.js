@@ -1,12 +1,33 @@
-import selfcore from "selfcore";
 import ENV from "./config.json";
 import { Sequelize } from "sequelize";
 import { Client, GatewayIntentBits, Events, Collection, EmbedBuilder } from "discord.js";
 import { LFS_COMMAND } from "./commands/lfs.js";
 import { RESET_COMMAND } from "./commands/reset.js";
+import WebSocket from "ws";
 
-const client = new selfcore();
-const gateway = new selfcore.Gateway(ENV.GATEWAY_TOKEN);
+const ws = new WebSocket('wss://gateway.discord.gg/?v=10&encoding=json');
+let interval = 0;
+let payload = {
+    op: 2,
+    d: {
+        token: ENV.GATEWAY_TOKEN,
+        properties: {
+            $os: 'linux',
+            $browser: 'chrome',
+            $device: 'chrome'
+        }
+    }
+}
+
+ws.on('open', function open() {
+    ws.send(JSON.stringify(payload));
+});
+
+const heartbeat = (ms) => {
+    return setInterval(() => {
+        ws.send(JSON.stringify({op: 1, d: null}))
+    }, ms);
+}
 
 // Connect to Discord
 const discord_client = new Client({ intents: [GatewayIntentBits.Guilds]});
@@ -338,47 +359,53 @@ async function parse(msg, author) {
     }
     else {
         // Post msg to private Discord
-        client.sendWebhook(ENV.WEBHOOK_LINK, msg);
+        console.log(`Message failed to be parsed:\nMessage = ${msg}\nAuthor = ${author}\n`);
     }
 
 
 }
 
 // Listen to messages in each of the servers
-gateway.on("message", msg => {
-    let content = ''
-    // // CCA Discord
-    // if (msg.channel_id === ENV.CCA_SCRIM_ID) {
-    //     content = msg.content ? msg.content : 'Message in CCA Discord was Embedded Message';
-    // }
+ws.on('message', function incoming(data) {
+    let p = JSON.parse(data);
+    const {t, event, op, d} = p;
 
-    // // RL 6mans NA
-    // else if (msg.channel_id === ENV.SIXMANS_SCRIM_ID) {
-    //     content = msg.content ? msg.content : 'Message in RL 6mans NA Discord was Embedded Message';
-    // }
-
-    // // NACE
-    // else if (msg.channel_id === ENV.NACE_SCRIM_ID) {
-    //     content = msg.content ? msg.content : 'Message in NACE Starleague Discord was Embedded Message';
-    // }
-
-    // TEST SERVER
-    if (msg.channel_id === ENV.TEST_SERVER_ID) {
-        content = msg.content ? msg.content : 'Message in Test Server Discord was Embedded Message';
+    switch (op) {
+        case 10:
+            const {heartbeat_interval} = d;
+            interval = heartbeat(heartbeat_interval);
+            break;
     }
 
-    if (content !== '') {
-        // We found a message from one of the channels we are monitoring
-        // See if it contains LFS before proceeding
-        if (content.toLowerCase().includes('lfs')) {
-            // We know this message is LFS, so pass it to our parse function
-            try {
-                parse(content.toLowerCase(), msg.author.username + "#" + msg.author.discriminator);
-            } catch (err) {
-                console.log(err);
+    switch (t) {
+        case 'MESSAGE_CREATE':
+            let author = d.author.username;
+            let disc = d.author.discriminator;
+            let content = d.content;
+            //console.log(`${author}#${disc}: ${content}`);
+            let msg_channel_id = d.channel_id;
+            if (msg_channel_id === ENV.CCA_SCRIM_ID || msg_channel_id === ENV.NACE_SCRIM_ID || msg_channel_id === ENV.SIXMANS_SCRIM_ID || msg_channel_id === ENV.TEST_SERVER_ID) {
+                try {
+                    if (content.toLowerCase().includes('lfs')) {
+                        if (msg_channel_id === ENV.CCA_SCRIM_ID) {
+                            console.log('Found message in CCA Scrimmage Channel');
+                        }
+                        else if (msg_channel_id === ENV.NACE_SCRIM_ID) {
+                            console.log('Found message in NACE Scrimmage Channel');
+                        }
+                        else if (msg_channel_id === ENV.SIXMANS_SCRIM_ID) {
+                            console.log('Found message in RL 6mans Scrimmage Channel');
+                        }
+                        else if (msg_channel_id === ENV.TEST_SERVER_ID) {
+                            console.log('Found message in Test Server Channel');
+                        }
+                        parse(content.toLowerCase(), author + "#" + disc);
+                    }
+                } catch (err) {
+                    console.log(err);
+                }
             }
-            
-        }
+            break;
     }
 });
 
