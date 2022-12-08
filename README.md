@@ -11,3 +11,8 @@ ScrimBot uses a node package to "listen" in three Rocket League Discord communit
 `/lfs [MMR_RANGE] [TIME] [TIMEZONE] [DAY]` - All four parameters are optional as they only refine the database search. `DAY` is the only non-string parameter as this is an integer greater than or equal to zero. 
 
 `/reset` - An Admin exclusive command that allows for the scrimmage database to be reset in the event of a technical error.
+
+## How To Use
+Ensure that the commands above are deployed to each server the bot is in by running `node --experimental-json-modules deploy-commands.js`.
+
+Then, activate the bot by running `node --experimental-json-modules index.js`.
