@@ -359,7 +359,8 @@ async function parse(msg, author) {
     }
     else {
         // Post msg to private Discord
-        console.log(`Message failed to be parsed:\nMessage = ${msg}\nAuthor = ${author}\n`);
+        //console.log(`Message failed to be parsed:\nMessage = ${msg}\nAuthor = ${author}\n`);
+        discord_client.channels.cache.get(ENV.MISSED_SCRIM_ID).send(msg);
     }
 
 
@@ -388,18 +389,21 @@ ws.on('message', function incoming(data) {
                 try {
                     if (content.toLowerCase().includes('lfs')) {
                         if (msg_channel_id === ENV.CCA_SCRIM_ID) {
-                            console.log('Found message in CCA Scrimmage Channel');
+                            //console.log('Found message in CCA Scrimmage Channel');
+                            parse(content.toLowerCase(), author + "#" + disc);
                         }
                         else if (msg_channel_id === ENV.NACE_SCRIM_ID) {
-                            console.log('Found message in NACE Scrimmage Channel');
+                            //console.log('Found message in NACE Scrimmage Channel');
+                            parse(content.toLowerCase(), author + "#" + disc);
                         }
                         else if (msg_channel_id === ENV.SIXMANS_SCRIM_ID) {
-                            console.log('Found message in RL 6mans Scrimmage Channel');
+                            //console.log('Found message in RL 6mans Scrimmage Channel');
+                            parse(content.toLowerCase(), author + "#" + disc);
                         }
                         else if (msg_channel_id === ENV.TEST_SERVER_ID) {
-                            console.log('Found message in Test Server Channel');
+                            //console.log('Found message in Test Server Channel');
+                            //parse(content.toLowerCase(), author + "#" + disc);
                         }
-                        parse(content.toLowerCase(), author + "#" + disc);
                     }
                 } catch (err) {
                     console.log(err);
