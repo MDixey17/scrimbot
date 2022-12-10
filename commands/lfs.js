@@ -147,10 +147,11 @@ export const LFS_COMMAND = {
             }
         }
 
-        const timeInput = interaction.options.getString('time');
+        let timeInput = interaction.options.getString('time');
         let hourVal = -1;
         let moa = '';
         if (timeInput) {
+            timeInput = timeInput.toLowerCase();
             inputCount += 1;
             if ((timeInput.includes('am') || timeInput.includes('pm')) && !timeInput.includes(':')) {
                 if (timeInput.includes('am')) {
@@ -187,11 +188,11 @@ export const LFS_COMMAND = {
                     moa = 'pm';
                 }
                 const colonIndex = timeInput.indexOf(':');
-                if (/^\d+$/.test(msg.substring(colonIndex - 2, colonIndex))) {
-                    hourVal = Number(msg.substring(colonIndex - 2, colonIndex));
+                if (/^\d+$/.test(timeInput.substring(colonIndex - 2, colonIndex))) {
+                    hourVal = Number(timeInput.substring(colonIndex - 2, colonIndex));
                 }
-                else if (/^\d+$/.test(msg.substring(colonIndex - 1, colonIndex))) {
-                    hourVal = Number(msg.substring(colonIndex - 1, colonIndex));
+                else if (/^\d+$/.test(timeInput.substring(colonIndex - 1, colonIndex))) {
+                    hourVal = Number(timeInput.substring(colonIndex - 1, colonIndex));
                 }
                 else {
                     await interaction.editReply({ embeds: [errorEmbed] });
@@ -204,8 +205,9 @@ export const LFS_COMMAND = {
             }
         }
 
-        const timeZoneInput = interaction.options.getString('timezone');
+        let timeZoneInput = interaction.options.getString('timezone');
         if (timeZoneInput) {
+            timeZoneInput = timeZoneInput.toLowerCase();
             if (timeInput) {
                 inputCount += 1;
             }

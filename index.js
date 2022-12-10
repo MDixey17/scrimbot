@@ -238,13 +238,13 @@ async function parse(msg, author) {
 
     // Get the timezone
     if (timezone === '') {
-        if (msg.includes('est')) {
+        if (msg.includes('est') || msg.includes('eastern')) {
             timezone = 'est';
         }
-        else if (msg.includes('cst')) {
+        else if (msg.includes('cst') || msg.includes('central')) {
             timezone = 'cst';
         }
-        else if (msg.includes('pst')) {
+        else if (msg.includes('pst') || msg.includes('pacific')) {
             timezone = 'pst';
         }
     }
@@ -276,6 +276,15 @@ async function parse(msg, author) {
                     time = msg.substring(amIndex - 1, amIndex + 2);
                 }
             }
+            else {
+                // Message does NOT have AM or PM, so we can assume PM
+                let msgPieces = msg.split(' '); // [LFS, MMR, TIME, TIMEZONE, DATE]
+                for (let i = 1; i < msgPieces.length; i++) {
+                    if (msgPieces[i].length <= 2 && /^\d+$/.test(msgPieces[i])) {
+                        time = msgPieces[i] + 'pm';
+                    }
+                }
+            }
         }
         else {
             const colonIndex = msg.indexOf(':');
@@ -286,11 +295,17 @@ async function parse(msg, author) {
                     if (msg.substring(colonIndex + 3, colonIndex + 5) === 'pm' || msg.substring(colonIndex + 3, colonIndex + 5) === 'am') {
                         time = msg.substring(colonIndex - 2, colonIndex + 5);
                     }
+                    else {
+                        time = msg.substring(colonIndex - 2, colonIndex + 3) + 'pm';
+                    }
                 }
                 else {
                     // 1 Digit
                     if (msg.substring(colonIndex + 3, colonIndex + 5) === 'pm' || msg.substring(colonIndex + 3, colonIndex + 5) === 'am') {
                         time = msg.substring(colonIndex - 1, colonIndex + 5);
+                    }
+                    else {
+                        time = msg.substring(colonIndex - 1, colonIndex + 3) + 'pm';
                     }
                 }
             }
