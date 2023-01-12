@@ -135,7 +135,17 @@ const initializeWebsocket = () => {
                 parse(content.toLowerCase(), author + "#" + disc);
               } else if (msg_channel_id === ENV.TEST_SERVER_ID) {
                 //console.log('Found message in Test Server Channel');
-                //parse(content.toLowerCase(), author + "#" + disc);
+                parse(content.toLowerCase(), author + "#" + disc);
+              }
+            }
+            else if (d.embeds.length > 0) {
+              // Check to make sure its from a server we recognize
+              // 6mans
+              if (msg_channel_id === ENV.SIXMANS_SCRIM_ID) {
+                discord_client.channels.cache
+                  .get(ENV.MISSED_SCRIM_ID)
+                  .send("Found EMBEDDED message in RL 6mans Scrimmage Channel");
+                parseEmbeds(d.embeds);
               }
             }
           } catch (err) {
@@ -183,13 +193,14 @@ const ScrimData = sequelize.define("scrim_data", {
 async function removeScrims() {
   await ScrimData.sync();
   const today = new Date();
+  //today.setHours(today.getHours() - 6);
   const todayDD = Number(String(today.getDate()).padStart(2, "0"));
   const todayMM = Number(String(today.getMonth() + 1).padStart(2, "0"));
   const todayYYYY = today.getFullYear();
   let allScrims = await ScrimData.findAll();
   let scrimsToDelete = []; // createdAt
   let deleteCount = 0;
-  allScrims.forEach((scrim) => {
+  for(let scrim in allScrims) {
     const t = new Date(scrim.createdAt);
     const tDD = Number(String(t.getDate()).padStart(2, "0"));
     const tMM = Number(String(t.getMonth() + 1).padStart(2, "0"));
@@ -229,7 +240,7 @@ async function removeScrims() {
         scrimsToDelete.push(scrim.createdAt);
       }
     }
-  });
+  }
 
   for (let i = 0; i < scrimsToDelete.length; i++) {
     const numRowsDeleted = await ScrimData.destroy({
@@ -244,17 +255,17 @@ async function removeScrims() {
 async function checkDuplicates(contact, mmrRange, time, timezone, day) {
   await ScrimData.sync();
   let allScrims = await ScrimData.findAll();
-  allScrims.forEach((scrim) => {
+  for(let i = 0; i < allScrims.length; i++) {
     if (
-      scrim.contact == contact &&
-      scrim.mmr_range == mmrRange &&
-      scrim.time == time &&
-      scrim.timezone == timezone &&
-      scrim.day == day
+      allScrims[i].contact === contact &&
+      allScrims[i].mmr_range === mmrRange.toLowerCase() &&
+      allScrims[i].time === time.toLowerCase() &&
+      allScrims[i].timezone === timezone.toLowerCase() &&
+      allScrims[i].day === day
     ) {
       return true; // Found a duplicate LFS message, so we DO NOT want to add it
     }
-  });
+  }
   return false; // Not a duplicate LFS message
 }
 
@@ -528,7 +539,7 @@ async function parse(msg, author) {
 
   // Strategy: post these to the Bot Test Server to see what kind of formats are not working
   // Check all variables
-  if (mmr_range !== "" && time !== "" && timezone !== "") {
+  if (mmr_range !== "" && time !== "" && timezone !== "" && mmr_range.length > 3) {
     const foundDuplicate = await checkDuplicates(author, mmr_range, time, timezone, date);
     if (!foundDuplicate) {
       // Add to database
@@ -550,6 +561,24 @@ async function parse(msg, author) {
   }
 }
 
+// TODO: Have this store information in the database
+async function parseEmbeds(embeds) {
+  let testMsg = ''; // We will remove this later once we have our information
+  for (let i = 0; i < embeds.length; i++) {
+    testMsg += `Embed ${i} Title: ${embeds[i].title}\nEmbed ${i} Description: ${embeds[i].description}\n`;
+    if (embeds[i].fields.length > 0) {
+      // There is at least one field to this Embed
+      for (let j = 0; j < embeds[i].fields.length; j++) {
+        testMsg += `Embed ${i} Field ${j} Name: ${embeds[i].fields[j].name}\nEmbed ${i} Field ${j} Value: ${embeds[i].fields[j].value}\n`
+      }
+    }
+    if (embeds[i].url) {
+      // There is a link attached to this Embed
+      testMsg += `Embed ${i} Link: ${embeds[i].url}\n`
+    }
+  }
+}
+
 // Trigger when the bot is ready
 discord_client.once("ready", async () => {
   console.log("ScrimBot online!");
@@ -557,6 +586,8 @@ discord_client.once("ready", async () => {
 
 // Handle Commands
 discord_client.on(Events.InteractionCreate, async (interaction) => {
+  //const temp = new Date();
+  //console.log(temp.toString());
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);
