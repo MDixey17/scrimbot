@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { LFS_COMMAND } from "./commands/lfs.js";
 import { RESET_COMMAND } from "./commands/reset.js";
+import { HELP_COMMAND } from "./commands/help";
 import WebSocket from "ws";
 
 const initialUrl = "wss://gateway.discord.gg";
@@ -561,22 +562,92 @@ async function parse(msg, author) {
   }
 }
 
-// TODO: Have this store information in the database
 async function parseEmbeds(embeds) {
-  let testMsg = ''; // We will remove this later once we have our information
+  //let testMsg = ''; // We will remove this later once we have our information
+  let mmrRange = '';
+  let day = -1;
+  let time = '';
+  let timezone = '';
+  let contact = '';
   for (let i = 0; i < embeds.length; i++) {
-    testMsg += `Embed ${i} Title: ${embeds[i].title}\nEmbed ${i} Description: ${embeds[i].description}\n`;
-    if (embeds[i].fields.length > 0) {
-      // There is at least one field to this Embed
-      for (let j = 0; j < embeds[i].fields.length; j++) {
-        testMsg += `Embed ${i} Field ${j} Name: ${embeds[i].fields[j].name}\nEmbed ${i} Field ${j} Value: ${embeds[i].fields[j].value}\n`
+    //testMsg += `Embed ${i} Title: ${embeds[i].title}\nEmbed ${i} Description: ${embeds[i].description}\n`;
+    if (embeds[i].author) { // if embeds[i].author != null
+      //console.log(embeds[i].author);
+      //testMsg += `Embed ${i} Author: ${embeds[i].author.name}\n`;
+      if (embeds[i].author.name) {
+        mmrRange = embeds[i].author.name;
+      }
+    }
+    if (embeds[i].description) {
+      const msg = embeds[i].description.toLowerCase();
+      // Get the timezone
+      if (timezone === "") {
+        if (msg.includes("est") || msg.includes("eastern")) {
+          timezone = "est";
+        } else if (msg.includes("cst") || msg.includes("central")) {
+          timezone = "cst";
+        } else if (msg.includes("pst") || msg.includes("pacific")) {
+          timezone = "pst";
+        }
+      }
+
+      // Get the time
+      /**
+       * TODO: We can't use colons, so instead use pm or am
+       */
+      if (time === "") {
+        const colonIndex = msg.indexOf(":");
+        // 2 digits before colon
+        if (/^\d+$/.test(msg.substring(colonIndex - 2, colonIndex))) {
+          time = msg.substring(colonIndex - 2, colonIndex + 5);
+        }
+        // 1 digits before colon
+        else {
+          time = msg.substring(colonIndex - 1, colonIndex + 5);
+        }
+      }
+
+      // Get the day
+      if (day === -1) {
+        if (msg.includes("monday")) {
+          day = getNumDays("monday");
+        } else if (msg.includes("tuesday")) {
+          day = getNumDays("tuesday");
+        } else if (msg.includes("wednesday")) {
+          day = getNumDays("wednesday");
+        } else if (msg.includes("thursday")) {
+          day = getNumDays("thursday");
+        } else if (msg.includes("friday")) {
+          day = getNumDays("friday");
+        } else if (msg.includes("saturday")) {
+          day = getNumDays("saturday");
+        } else if (msg.includes("sunday")) {
+          day = getNumDays("sunday");
+        }
       }
     }
     if (embeds[i].url) {
       // There is a link attached to this Embed
-      testMsg += `Embed ${i} Link: ${embeds[i].url}\n`
+      //testMsg += `Embed ${i} Link: ${embeds[i].url}\n`
+      contact = embeds[i].url;
     }
   }
+  const foundDuplicate = await checkDuplicates(contact, mmrRange, time, timezone, day);
+  if (!foundDuplicate) {
+    // Add to database
+    await ScrimData.sync();
+    const scrim = await ScrimData.create({
+      contact: contact,
+      mmr_range: mmrRange,
+      time: time,
+      timezone: timezone,
+      day: day,
+    });
+  } else {
+    discord_client.channels.cache.get(ENV.MISSED_SCRIM_ID).send('Found duplicate EMBED!');
+  }
+  //discord_client.channels.cache.get(ENV.MISSED_SCRIM_ID).send(testMsg);
+
 }
 
 // Trigger when the bot is ready
@@ -609,7 +680,18 @@ discord_client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.commandName === "lfs") {
       await LFS_COMMAND.execute(interaction);
     } else if (interaction.commandName === "reset") {
-      await RESET_COMMAND.execute(interaction);
+      if (interaction.guildId === "796203083616354335") {
+        await RESET_COMMAND.execute(interaction);
+      }
+      else {
+        const noPermEmbed = new EmbedBuilder()
+          .setColor("#FF0000")
+          .setTitle("ScrimBot - Error")
+          .setDescription("This server is not eligible to execute this command!");
+        await interaction.reply({ embeds: [noPermEmbed], ephemeral: true });
+      }
+    } else if (interaction.commandName === 'help') {
+      await HELP_COMMAND.execute(interaction);
     } else {
       console.error(
         `No command matching ${interaction.commandName} was found.`

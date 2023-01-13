@@ -2,12 +2,14 @@ import { REST, Routes } from 'discord.js';
 import envjson from "./config.json";
 import { LFS_COMMAND } from "./commands/lfs.js";
 import { RESET_COMMAND } from "./commands/reset.js";
+import { HELP_COMMAND } from './commands/help.js';
 
 const commands = [];
 
 // Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
 commands.push(LFS_COMMAND.data.toJSON());
 commands.push(RESET_COMMAND.data.toJSON());
+commands.push(HELP_COMMAND.data.toJSON());
 
 // Construct and prepare an instance of the REST module
 const rest = new REST({ version: '10' }).setToken(envjson.BOT_TOKEN);
