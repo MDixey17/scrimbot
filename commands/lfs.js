@@ -362,7 +362,7 @@ export const LFS_COMMAND = {
             .setTitle('ScrimBot - Found Scrimmages');
         let descString = '';
         for (let i = 0; i < obtainedData.length; i++) {
-            if (descString.length + maxCharMessage.length + 100 < 4050) {
+            if (descString.length + maxCharMessage.length + 300 < 4050) {
                 let t = new Date(obtainedData[i].createdAt);
                 const diffTime = Math.abs(today - t);
                 const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
