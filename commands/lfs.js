@@ -368,7 +368,12 @@ export const LFS_COMMAND = {
                 const numDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
                 const dayString = getDayString(obtainedData[i].day - numDays);
                 if (dayString) {
-                    descString += "**" + String(obtainedData[i].mmr_range) + `** Scrimmage - ${dayString} @ ` + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                    if (obtainedData[i].contact.includes("https://")) {
+                        descString += "**" + String(obtainedData[i].mmr_range) + `** Scrimmage - ${dayString} @ ` + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + `\n*Contact:* [Gankster](${String(obtainedData[i].contact)})` + '\n\n';
+                    }
+                    else {
+                        descString += "**" + String(obtainedData[i].mmr_range) + `** Scrimmage - ${dayString} @ ` + obtainedData[i].time + ' ' + obtainedData[i].timezone.toUpperCase() + '\n*Contact:* ' + String(obtainedData[i].contact) + '\n\n';
+                    }
                 }
             }
             else {
