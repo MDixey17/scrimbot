@@ -592,18 +592,28 @@ async function parseEmbeds(embeds) {
       }
 
       // Get the time
-      /**
-       * TODO: We can't use colons, so instead use pm or am
-       */
       if (time === "") {
-        const colonIndex = msg.indexOf(":");
-        // 2 digits before colon
-        if (/^\d+$/.test(msg.substring(colonIndex - 2, colonIndex))) {
-          time = msg.substring(colonIndex - 2, colonIndex + 5);
+        if (msg.includes("pm")) {
+          const timeIndex = msg.indexOf("pm"); // 10:00pm
+          // 2 digits before colon
+          if (/^\d+$/.test(msg.substring(timeIndex - 5, timeIndex - 3))) {
+            time = msg.substring(timeIndex - 5, timeIndex + 2);
+          }
+          // 1 digits before colon
+          else {
+            time = msg.substring(timeIndex - 4, timeIndex + 2);
+          }
         }
-        // 1 digits before colon
-        else {
-          time = msg.substring(colonIndex - 1, colonIndex + 5);
+        else if (msg.includes("am")) {
+          const timeIndex = msg.indexOf("am"); // 10:00pm
+          // 2 digits before colon
+          if (/^\d+$/.test(msg.substring(timeIndex - 5, timeIndex - 3))) {
+            time = msg.substring(timeIndex - 5, timeIndex + 2);
+          }
+          // 1 digits before colon
+          else {
+            time = msg.substring(timeIndex - 4, timeIndex + 2);
+          }
         }
       }
 
