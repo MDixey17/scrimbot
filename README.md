@@ -2,6 +2,9 @@
 _Developed by Matt Dixey (TitanHawk17)_
 _Contributions made by Ben Nylund (Chez) & Jakson Coffin (Cfn)_
 
+## Bot Invite Link
+[Click me!](https://discord.com/api/oauth2/authorize?client_id=1047191564180520980&permissions=517543906304&scope=bot)
+
 ## Introduction & Purpose
 ScrimBot was designed to find and store Rocket League scrimmages from across communities and be able to provide requested scrimmages in a fast, efficient manner. It is able to parse Discord messages that are designed to look for a scrimmage. The ultimate goal was being able to simplify the process of scouring multiple Discord communities in the hopes of finding a scrimmage. 
 
